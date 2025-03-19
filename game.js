@@ -79,7 +79,6 @@ let height = 720;
 let scale = 2;
 let lastDamageTime = 0;
 let damageCooldown = 1000; // 冷卻時間，單位毫秒
-let player;
 let playerFacing = new Phaser.Math.Vector2(0, 1);
 let cursors;
 let map;
@@ -87,14 +86,8 @@ let enemies;
 let bullets;
 let healthText;
 let levelText;
-// 玩家屬性：含有職業數值
-let playerStats = {
-    health: 100,
-    attack: 20,
-    speed: 100,
-};
-let exp = 0;
-let level = 1;
+;
+let player;
 // 區塊設定：假設每個區塊 30×30 個 tile（依照原圖 tile 大小）
 const CHUNK_WIDTH = 30 * mapdata.tilewidth;
 const CHUNK_HEIGHT = 30 * mapdata.tileheight;
@@ -136,8 +129,8 @@ class Scene extends Phaser.Scene {
 class MenuScene extends Scene {
     constructor() { super(MenuScene); }
     create() {
-        this.addText(width / 2, 150, "我的遊戲", { fontSize: 48, color: "#fff" });
-        this.addButton(width / 2, height - 300, "開始遊戲", { fontSize: 32, color: "#fff" }, b => this.scene.start("GameScene"));
+        this.addText(width / 2, 150, "我的遊戲", { fontSize: 48, color: "#fff" }).setOrigin(0.5);
+        this.addButton(width / 2, height - 300, "開始遊戲", { fontSize: 32, color: "#fff" }, b => this.scene.start("GameScene")).setOrigin(0.5);
     }
 }
 // 升級子畫面，請將此 Scene 加入遊戲的 scene 列表中
@@ -145,9 +138,9 @@ class UpgradeScene extends Scene {
     constructor() { super(UpgradeScene); }
     create() {
         this.setBackGround();
-        this.addOption(100, 150, "升級生命 +20", () => playerStats.health += 20);
-        this.addOption(100, 250, "升級攻擊 +2", () => playerStats.attack += 2);
-        this.addOption(100, 350, "升級移動速度 +10", () => playerStats.speed += 10);
+        this.addOption(100, 150, "升級生命 +20", () => player.stats.health += 20);
+        this.addOption(100, 250, "升級攻擊 +2", () => player.stats.attack += 2);
+        this.addOption(100, 350, "升級移動速度 +10", () => player.stats.speed += 10);
     }
     addOption(x, y, text, cbfn) {
         return this.addButton(x, y, text, { fontSize: 24 }, b => {
@@ -171,8 +164,16 @@ class GameScene extends Scene {
     create(data) {
         map = this.make.tilemap({ key: "map" });
         const tileset = map.addTilesetImage("tiles", "tiles");
-        player = this.physics.add.sprite(64, 64, "tiles_sprites", 6).setDepth(10).setScale(scale);
-        healthText = this.add.text(10, 40, `Health: ${playerStats.health}`, { fontSize: 20, color: "#fff" }).setScrollFactor(0);
+        player = Object.assign(this.physics.add.sprite(64, 64, "tiles_sprites", 6).setDepth(10).setScale(scale), {
+            stats: {
+                health: 100,
+                attack: 20,
+                speed: 100,
+                level: 1,
+                exp: 0
+            }
+        });
+        healthText = this.add.text(10, 40, `Health: ${player.stats.health}`, { fontSize: 20, color: "#fff" }).setScrollFactor(0);
         enemies = this.physics.add.group();
         // 建立子彈群組，每秒自動發射子彈
         bullets = this.physics.add.group();
@@ -187,7 +188,7 @@ class GameScene extends Scene {
                 // 子彈與怪物碰撞時，扣除怪物血量（根據玩家攻擊力），血量耗盡則消滅怪物並獲得經驗
                 this.physics.add.overlap(bullet, enemies, (b, enemySprite) => {
                     let enemyHealth = enemySprite.getData("health");
-                    enemyHealth -= playerStats.attack;
+                    enemyHealth -= player.stats.attack;
                     if (enemyHealth > 0)
                         enemySprite.setData("health", enemyHealth);
                     else {
@@ -219,16 +220,17 @@ class GameScene extends Scene {
                 return;
             // 根據怪物的攻擊力扣除玩家血量，預設值為 10（也可以改成 enemySprite.getData("attack")）
             const damage = enemySprite.getData("attack") || 0;
-            playerStats.health -= damage;
-            if (playerStats.health <= 0) {
+            player.stats.health -= damage;
+            if (player.stats.health <= 0) {
+                window.ipc.send("savedata", player.stats);
                 this.scene.stop(this);
                 this.scene.start("MenuScene");
             }
             lastDamageTime = now;
-            console.log(`玩家觸碰怪物，扣血 ${damage}，目前血量：${playerStats.health}`);
+            console.log(`玩家觸碰怪物，扣血 ${damage}，目前血量：${player.stats.health}`);
         }, undefined, this);
         // 顯示等級文字與玩家狀態
-        levelText = this.add.text(10, 10, `Level: ${level}`, { fontSize: 20, color: "#fff" }).setDepth(11).setScrollFactor(0);
+        levelText = this.add.text(10, 10, `Level: ${player.stats.level}`, { fontSize: 20, color: "#fff" }).setDepth(11).setScrollFactor(0);
         // 設定鍵盤控制
         cursors = this.input.keyboard.createCursorKeys();
         // 攝影機跟隨玩家
@@ -239,8 +241,8 @@ class GameScene extends Scene {
         loadChunks(this, currentChunk.chunkX, currentChunk.chunkY, tileset);
     }
     update(time, delta) {
-        // 玩家移動控制，使用 playerStats.speed 影響移動速度
-        const speed = playerStats.speed;
+        // 玩家移動控制，使用 player.speed 影響移動速度
+        const speed = player.stats.speed;
         player.setVelocity(0, 0);
         let direction = new Phaser.Math.Vector2(0, 0);
         if (cursors.left.isDown) {
@@ -272,7 +274,7 @@ class GameScene extends Scene {
         enemies.getChildren().forEach((enemy) => {
             this.physics.moveToObject(enemy, player, 30);
         });
-        healthText.setText(`Health: ${playerStats.health}`).setDepth(11);
+        healthText.setText(`Health: ${player.stats.health}`).setDepth(11);
         // 檢查玩家是否進入新的區塊，若是則更新載入的 3x3 地圖區塊
         updateChunks(this);
     }
@@ -295,16 +297,16 @@ class GameScene extends Scene {
     }
     // 增加經驗值，並在達到指定經驗後升級
     gainExp(amount) {
-        exp += amount;
-        const needed = 50 * level;
-        if (exp < needed)
+        player.stats.exp += amount;
+        const needed = 50 * player.stats.level;
+        if (player.stats.exp < needed)
             return;
-        exp -= needed;
-        level++;
+        player.stats.exp -= needed;
+        player.stats.level++;
         // 每次升級獲得一個升級點
         this.scene.pause("GameScene");
         this.scene.launch("UpgradeScene");
-        levelText.setText(`Level: ${level}`);
+        levelText.setText(`Level: ${player.stats.level}`);
     }
 }
 const game = new Phaser.Game({
