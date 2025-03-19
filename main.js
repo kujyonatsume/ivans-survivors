@@ -1,31 +1,45 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
-const path = require('path');
-
-
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const fs_1 = __importDefault(require("fs"));
+const electron_1 = require("electron");
+const path_1 = __importDefault(require("path"));
 const createWindow = () => {
-    const win = new BrowserWindow({
+    const win = new electron_1.BrowserWindow({
         width: 720, height: 720,
-        resizable:false,
+        resizable: false,
         useContentSize: true,
-        autoHideMenuBar:true,
+        autoHideMenuBar: true,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'), // ✅ 使用 preload.js
+            preload: path_1.default.join(__dirname, './preload.js'), // ✅ 使用 preload.js
             contextIsolation: true, // ✅ 確保安全
-            enableRemoteModule: false
         }
     });
-
     win.loadFile('index.html');
 };
-
-app.whenReady().then(createWindow);
-
-app.on('window-all-closed', () => {
+electron_1.app.whenReady().then(createWindow);
+electron_1.app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
-        app.quit();
+        electron_1.app.quit();
     }
 });
-
-app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+electron_1.app.on('activate', () => {
+    if (electron_1.BrowserWindow.getAllWindows().length === 0)
+        createWindow();
+});
+const sendMap = {
+    savedata(...data) {
+        fs_1.default.writeFileSync("a.json", JSON.stringify(data), "utf8");
+    }
+};
+const invokeMap = {
+    ping: (value) => `${value} pong`
+};
+electron_1.ipcMain.on('send', (event, ...args) => {
+    sendMap[args.shift()](event, ...args);
+});
+electron_1.ipcMain.handle('invoke', (event, ...args) => {
+    return invokeMap[args.shift()](args);
 });
