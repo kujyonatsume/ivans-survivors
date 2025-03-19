@@ -222,7 +222,7 @@ class GameScene extends Scene {
             const damage = enemySprite.getData("attack") || 0;
             player.stats.health -= damage;
             if (player.stats.health <= 0) {
-                window.ipc.send("savedata", player.stats);
+                ipc.send("savedata", player.stats);
                 this.scene.stop(this);
                 this.scene.start("MenuScene");
             }

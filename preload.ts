@@ -4,6 +4,7 @@ declare global {
   interface Window {
     ipc: any;
   }
+  const ipc: any;
 }
 
 //通过contextBridge 向渲染进程暴露一个全局的window.electronAPI
