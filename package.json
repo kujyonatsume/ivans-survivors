@@ -1,9 +1,9 @@
 {
   "name": "ivans-survivors",
   "version": "1.0.0",
-  "main": "main.js",
+  "main": "./dist/main.js",
   "scripts": {
-    "start": "tsc && electron .",
+    "start": "tsc && electron ./dist/main.js",
     "pack": "electron-builder -c electron-builder.yml",
     "postinstall": "electron-builder install-app-deps",
     "build:win32": "electron-builder --dir --win --ia32",

@@ -108,7 +108,7 @@ let currentChunks: { [key: string]: Phaser.Tilemaps.TilemapLayer } = {};
 let currentColliders: Phaser.Physics.Arcade.Collider[] = [];
 
 class Scene extends Phaser.Scene {
-    constructor(config?: string | Phaser.Types.Scenes.SettingsConfig | Function) {
+    constructor(config?: string | { new(): any }) {
         if (config instanceof Function) config = config.name
         super(config)
     }

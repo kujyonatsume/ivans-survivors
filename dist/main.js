@@ -13,11 +13,11 @@ const createWindow = () => {
         useContentSize: true,
         autoHideMenuBar: true,
         webPreferences: {
-            preload: path_1.default.join(__dirname, './preload.js'), // ✅ 使用 preload.js
+            preload: path_1.default.join(__dirname, 'preload.js'), // ✅ 使用 preload.js
             contextIsolation: true, // ✅ 確保安全
         }
     });
-    win.loadFile('index.html');
+    win.loadFile(path_1.default.join(__dirname, '../public/index.html'));
 };
 electron_1.app.whenReady().then(createWindow);
 electron_1.app.on('window-all-closed', () => {
@@ -30,16 +30,18 @@ electron_1.app.on('activate', () => {
         createWindow();
 });
 const sendMap = {
-    savedata(...data) {
-        fs_1.default.writeFileSync("a.json", JSON.stringify(data), "utf8");
+    savedata(e, ...data) {
+        fs_1.default.writeFileSync("a.json", JSON.stringify(data[0]), "utf8");
     }
 };
 const invokeMap = {
-    ping: (value) => `${value} pong`
+    ping(value) {
+        return `${value} pong`;
+    }
 };
 electron_1.ipcMain.on('send', (event, ...args) => {
     sendMap[args.shift()](event, ...args);
 });
 electron_1.ipcMain.handle('invoke', (event, ...args) => {
-    return invokeMap[args.shift()](args);
+    return invokeMap[args.shift()](args[0]);
 });
